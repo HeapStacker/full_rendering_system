@@ -35,5 +35,11 @@
     <None Include="texture.fs" />
     <None Include="coordinate_systems.vs" />
     <None Include="coordinate_systems.fs" />
+    <None Include="1.colors.fs" />
+    <None Include="1.light_cube.fs" />
+    <None Include="lighting.vs" />
+    <None Include="lighting.fs" />
+    <None Include="light_obj.vs" />
+    <None Include="light_obj.fs" />
   </ItemGroup>
 </Project>
