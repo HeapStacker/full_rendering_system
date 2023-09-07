@@ -2,15 +2,12 @@
 #define SHADER_H
 
 #include <glad/glad.h>
+#include <glm/glm.hpp>
 
 #include <string>
 #include <fstream>
 #include <sstream>
 #include <iostream>
-
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 class Shader
 {
@@ -71,10 +68,11 @@ public:
         // delete the shaders as they're linked into our program now and no longer necessary
         glDeleteShader(vertex);
         glDeleteShader(fragment);
+
     }
     // activate the shader
     // ------------------------------------------------------------------------
-    void use()
+    void use() const
     {
         glUseProgram(ID);
     }
@@ -140,10 +138,10 @@ public:
 private:
     // utility function for checking shader compilation/linking errors.
     // ------------------------------------------------------------------------
-    void checkCompileErrors(unsigned int shader, std::string type)
+    void checkCompileErrors(GLuint shader, std::string type)
     {
-        int success;
-        char infoLog[1024];
+        GLint success;
+        GLchar infoLog[1024];
         if (type != "PROGRAM")
         {
             glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
