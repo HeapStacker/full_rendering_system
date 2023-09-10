@@ -148,6 +148,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="dirLight.fs" />
+    <None Include="light.setting" />
     <None Include="lighting.vs" />
     <None Include="lightObj.fs" />
     <None Include="lightObj.vs" />

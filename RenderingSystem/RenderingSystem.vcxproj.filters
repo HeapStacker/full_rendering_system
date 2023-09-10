@@ -40,5 +40,6 @@
     <None Include="pointLight.fs" />
     <None Include="spotLight.fs" />
     <None Include="multyLight.fs" />
+    <None Include="light.setting" />
   </ItemGroup>
 </Project>
