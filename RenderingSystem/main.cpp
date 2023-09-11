@@ -1,7 +1,5 @@
-﻿#define STB_IMAGE_IMPLEMENTATION
-#include <glad/glad.h>
+﻿#include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <stb_image.h>
 #include <thread>
 
 #include <glm/glm.hpp>
@@ -10,7 +8,10 @@
 
 #include "shader_s.h"
 #include "camera.h"
+#include "model.h"
 #include <iostream>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -83,6 +84,14 @@ int main()
     // ------------------------------------
     Shader lightingShader("lighting.vs", "multyLight.fs");
     Shader lightCubeShader("lightObj.vs", "lightObj.fs");
+    // build and compile shaders
+    // -------------------------
+    Shader ourShader("model.vs", "model.fs");
+    // load models
+    // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
+    stbi_set_flip_vertically_on_load(true);
+    // -----------
+    Model ourModel("models/backpack/backpack.obj");
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -196,17 +205,16 @@ int main()
     by defining light types as classes and set their values in there, or by using a more efficient uniform approach
     by using 'Uniform buffer objects', but that is something we'll discuss in the 'Advanced GLSL' tutorial.
     */
-    //[horror setting]
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glm::vec3 pointLightColors[] = {
-    glm::vec3(0.1f, 0.1f, 0.1f),
-    glm::vec3(0.1f, 0.1f, 0.1f),
-    glm::vec3(0.1f, 0.1f, 0.1f),
-    glm::vec3(0.3f, 0.1f, 0.1f)
+        glm::vec3(0.1f, 0.1f, 0.1f),
+        glm::vec3(0.1f, 0.1f, 0.1f),
+        glm::vec3(0.1f, 0.1f, 0.1f),
+        glm::vec3(0.3f, 0.1f, 0.1f)
     };
     // Directional light
     glUniform3f(glGetUniformLocation(lightingShader.ID, "dirLight.direction"), -0.2f, -1.0f, -0.3f);
-    glUniform3f(glGetUniformLocation(lightingShader.ID, "dirLight.ambient"), 0.0f, 0.0f, 0.0f);
+    glUniform3f(glGetUniformLocation(lightingShader.ID, "dirLight.ambient"), 1.0f, 1.0f, 1.0f);
     glUniform3f(glGetUniformLocation(lightingShader.ID, "dirLight.diffuse"), 0.05f, 0.05f, 0.05);
     glUniform3f(glGetUniformLocation(lightingShader.ID, "dirLight.specular"), 0.2f, 0.2f, 0.2f);
     // Point light 1                             
@@ -215,7 +223,7 @@ int main()
     glUniform3f(glGetUniformLocation(lightingShader.ID, "pointLights[0].diffuse"), pointLightColors[0].x, pointLightColors[0].y, pointLightColors[0].z);
     glUniform3f(glGetUniformLocation(lightingShader.ID, "pointLights[0].specular"), pointLightColors[0].x, pointLightColors[0].y, pointLightColors[0].z);
     glUniform1f(glGetUniformLocation(lightingShader.ID, "pointLights[0].constant"), 1.0f);
-    glUniform1f(glGetUniformLocation(lightingShader.ID, "pointLights[0].linear"), 0.09);
+    glUniform1f(glGetUniformLocation(lightingShader.ID, "pointLights[0].linear"), 0.09f);
     glUniform1f(glGetUniformLocation(lightingShader.ID, "pointLights[0].quadratic"), 0.032);
     // Point light 2                             
     glUniform3f(glGetUniformLocation(lightingShader.ID, "pointLights[1].position"), pointLightPositions[1].x, pointLightPositions[1].y, pointLightPositions[1].z);
@@ -317,6 +325,15 @@ int main()
             lightCubeShader.setMat4("model", model);
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
+        ourShader.use();
+        ourShader.setMat4("projection", projection);
+        ourShader.setMat4("view", view);
+        // render the loaded model
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(1.0f, 1.0f, 3.0f)); // translate it down so it's at the center of the scene
+        model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));	// it's a bit too big for our scene, so scale it down
+        ourShader.setMat4("model", model);
+        ourModel.Draw(ourShader);
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);

@@ -29,6 +29,15 @@
     <ClInclude Include="camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="model.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="texture.vs" />
@@ -41,5 +50,7 @@
     <None Include="spotLight.fs" />
     <None Include="multyLight.fs" />
     <None Include="light.setting" />
+    <None Include="model.vs" />
+    <None Include="model.fs" />
   </ItemGroup>
 </Project>
