@@ -214,7 +214,7 @@ int main()
     };
     // Directional light
     glUniform3f(glGetUniformLocation(lightingShader.ID, "dirLight.direction"), -0.2f, -1.0f, -0.3f);
-    glUniform3f(glGetUniformLocation(lightingShader.ID, "dirLight.ambient"), 1.0f, 1.0f, 1.0f);
+    glUniform3f(glGetUniformLocation(lightingShader.ID, "dirLight.ambient"), 0.2f, 0.2f, 0.2f);
     glUniform3f(glGetUniformLocation(lightingShader.ID, "dirLight.diffuse"), 0.05f, 0.05f, 0.05);
     glUniform3f(glGetUniformLocation(lightingShader.ID, "dirLight.specular"), 0.2f, 0.2f, 0.2f);
     // Point light 1                             
