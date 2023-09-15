@@ -306,7 +306,7 @@ int main()
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, cubePositions[i]);
             float angle = 20.0f * i;
-            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+            model = glm::rotate(model, (float)glfwGetTime() + angle, glm::vec3(1.0f, 0.3f, 0.5f));
             lightingShader.setMat4("model", model);
 
             glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -332,6 +332,7 @@ int main()
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(1.0f, 1.0f, 3.0f)); // translate it down so it's at the center of the scene
         model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));	// it's a bit too big for our scene, so scale it down
+        model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(1.0f, 0.3f, 0.5f));
         ourShader.setMat4("model", model);
         ourModel.Draw(ourShader);
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
