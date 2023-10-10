@@ -139,15 +139,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="contentInitializer.cpp" />
     <ClCompile Include="glad.c" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="manualVertices.cpp" />
+    <ClCompile Include="model.cpp" />
+    <ClCompile Include="RenderableObject.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h" />
+    <ClInclude Include="contentInitializer.h" />
+    <ClInclude Include="manualVertices.h" />
     <ClInclude Include="mesh.h" />
     <ClInclude Include="model.h" />
+    <ClInclude Include="RenderableObject.h" />
     <ClInclude Include="shader.h" />
-    <ClInclude Include="shader_s.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="dirLight.fs" />
