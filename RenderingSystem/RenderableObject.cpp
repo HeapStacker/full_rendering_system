@@ -90,6 +90,43 @@ static void SetShaders() {
 	}
 }
 
+unsigned int loadTexture(char const* path)
+{
+	unsigned int textureID;
+	glGenTextures(1, &textureID);
+
+	int width, height, nrComponents;
+	unsigned char* data = stbi_load(path, &width, &height, &nrComponents, 0);
+	if (data)
+	{
+		GLenum format;
+		if (nrComponents == 1)
+			format = GL_RED;
+		else if (nrComponents == 3)
+			format = GL_RGB;
+		else if (nrComponents == 4)
+			format = GL_RGBA;
+
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		stbi_image_free(data);
+	}
+	else
+	{
+		std::cout << "Texture failed to load at path: " << path << std::endl;
+		stbi_image_free(data);
+	}
+
+	return textureID;
+}
+
 RenderableObject* RenderableObject::FindById(unsigned int id) {
 	for (int i = 0; i < RenderableObject::renderableObjects.size(); i++) {
 		if (RenderableObject::renderableObjects[i]->id == id) return RenderableObject::renderableObjects[i];
@@ -105,17 +142,17 @@ RenderableObject::RenderableObject(std::string modelPath) {
 	RenderableObject::renderableObjects.push_back(this);
 }
 
-RenderableObject::RenderableObject(float* vertices, unsigned int verticesCount, unsigned int diffuseTextureMap, unsigned int specularTextureMap) {
+RenderableObject::RenderableObject(float* vertices, unsigned int verticesSize, const char* diffuseTextureMap, const char* specularTextureMap) {
 	id = ++RenderableObject::IdAdder;
 	shaderType = 0;
 	SetShaders();
-	materialData.diffuseMap = diffuseTextureMap;
-	materialData.specularMap = specularTextureMap;
-	materialData.verticesCount = verticesCount;
+	materialData.diffuseMap = loadTexture(diffuseTextureMap);
+	materialData.specularMap = loadTexture(specularTextureMap);
+	materialData.verticesCount = verticesSize / (sizeof(float) * 8);
 	glGenVertexArrays(1, &materialData.VAO);
 	glGenBuffers(1, &materialData.VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, materialData.VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); //or GL_DYNAMIC_DRAW for moving objects
+	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW); //or GL_DYNAMIC_DRAW for moving objects
 	glBindVertexArray(materialData.VAO);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
@@ -123,23 +160,22 @@ RenderableObject::RenderableObject(float* vertices, unsigned int verticesCount, 
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 	glEnableVertexAttribArray(2);
-	glBindVertexArray(0); //this is my addition
 	RenderableObject::renderableObjects.push_back(this);
 }
 
-RenderableObject::RenderableObject(float* vertices, unsigned int verticesCount) {
+RenderableObject::RenderableObject(float* vertices, unsigned int verticesSize) {
 	id = ++RenderableObject::IdAdder;
 	shaderType = 1;
 	SetShaders();
-	materialData.verticesCount = verticesCount;
+	materialData.verticesCount = verticesSize / (sizeof(float) * 8);
 	glGenVertexArrays(1, &materialData.VAO); //it's bad to create so many VAOs and VBOs
 	glGenBuffers(1, &materialData.VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, materialData.VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); //or GL_DYNAMIC_DRAW for moving objects
+	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW); //or GL_DYNAMIC_DRAW for moving objects
 	glBindVertexArray(materialData.VAO);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
-	glBindVertexArray(0); //this is my addition
+	this->setPosition();
 	RenderableObject::renderableObjects.push_back(this);
 }
 
@@ -152,7 +188,8 @@ RenderableObject::~RenderableObject() {
 }
 
 //object isn't fully removed (only at the end of the program)
-void RenderableObject::Erase(unsigned int id) {
+//UNSTABLE - doesn't crash the content but stops the camera from moving
+void RenderableObject::Erase(unsigned int id) { 
 	RenderableObject* object = RenderableObject::FindById(id);
 	RenderableObject::renderableObjects.erase(std::remove(RenderableObject::renderableObjects.begin(), RenderableObject::renderableObjects.end(), object), RenderableObject::renderableObjects.end());
 }
@@ -163,25 +200,27 @@ void RenderableObject::ReadActiveIDs() {
 	}
 }
 
-void setShaderDrawProperties(Shader* shader, GLFWwindow* window, Camera* camera, glm::mat4* model) {
+void setShaderDrawProperties(Shader* shader, Camera* camera, glm::mat4& model, glm::mat4& view, glm::mat4& projection) {
 	shader->use();
-	glm::mat4 projection = glm::perspective(glm::radians(camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f); //change the way of passing SCR_WIDTH & SCR_HEIGHT
-	glm::mat4 view = camera->GetViewMatrix();
-	shader->setMat4("projection", projection);
-	shader->setMat4("view", view);
 	shader->setVec3("viewPos", camera->Position);
 	shader->setVec3("spotLight.position", camera->Position);
 	shader->setVec3("spotLight.direction", camera->Front);
-	shader->setMat4("model", *model);
+	shader->setMat4("projection", projection);
+	shader->setMat4("view", view);
+	shader->setMat4("model", model);
 }
+
 
 //refactor to gain more optimised results
 void RenderableObject::RenderObjects(GLFWwindow* window, Camera* camera) {
-	glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+	glClearColor(0.1f, 0.1f, 0.1f, 1.0f); //make that the clear color can be changed somewhere
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glm::mat4 projection = glm::perspective(glm::radians(camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f); //change the way of passing SCR_WIDTH & SCR_HEIGHT
+	glm::mat4 view = camera->GetViewMatrix();
+	static Shader testLampShader("lightObj.vs", "lightObj.fs");
 	for (int i = 0; i < RenderableObject::renderableObjects.size(); i++) {
 		if (renderableObjects[i]->shaderType == 0) {
-			setShaderDrawProperties(lightedObjectShader, window, camera, &renderableObjects[i]->modelMatrix);
+			setShaderDrawProperties(lightedObjectShader, camera, renderableObjects[i]->modelMatrix, view, projection);
 			if (renderableObjects[i]->model) {
 				renderableObjects[i]->model->Draw(*lightedObjectShader);
 			}
@@ -195,7 +234,9 @@ void RenderableObject::RenderObjects(GLFWwindow* window, Camera* camera) {
 			}
 		}
 		else if (renderableObjects[i]->shaderType == 1) {
-			setShaderDrawProperties(lampShader, window, camera, &renderableObjects[i]->modelMatrix);
+			setShaderDrawProperties(&testLampShader, camera, renderableObjects[i]->modelMatrix, view, projection);
+			testLampShader.setMat4("model", renderableObjects[i]->modelMatrix);
+			glBindVertexArray(renderableObjects[i]->materialData.VAO);
 			glDrawArrays(GL_TRIANGLES, 0, renderableObjects[i]->materialData.verticesCount);
 		}
 		else {
@@ -205,4 +246,6 @@ void RenderableObject::RenderObjects(GLFWwindow* window, Camera* camera) {
 			exit(3);
 		}
 	}
+	glfwSwapBuffers(window);
+	glfwPollEvents();
 }

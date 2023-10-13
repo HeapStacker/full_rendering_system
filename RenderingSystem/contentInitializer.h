@@ -30,6 +30,7 @@ class ContentInitializer
             glfwTerminate();
             exit(1);
         }
+        glfwSetWindowPos(window, 800, 400); //just for setting window position manualy (for now)
         return window;
     }
     void setCoreSettings();
@@ -57,7 +58,7 @@ public:
     static ContentInitializer* GetInstance();
     ~ContentInitializer() { delete camera; }
 
-    void setUp(const char* contentName = "OpenGl Context", int windowWidth = 800, int windowHeight = 600, glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f), float cameraFov = 45.f, float cameraSensitivity = 0.1f, int fpsCap = 60) {
+    void setUp(const char* contentName = "OpenGl Context", int windowWidth = 800, int windowHeight = 600, glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f), float cameraFov = 45.f, float cameraSensitivity = 0.1f) {
         initGLFW();
         setLastXY(windowWidth, windowHeight); //fix maby
         window = createWindow(contentName, windowWidth, windowHeight);

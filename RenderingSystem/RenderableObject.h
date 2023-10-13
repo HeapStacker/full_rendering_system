@@ -27,10 +27,16 @@ class RenderableObject
 	glm::mat4 modelMatrix = glm::mat4(1.f);
 	unsigned int shaderType = 0;
 public:
-	void setPosition(glm::vec3 position) {
+
+	//we use this function also to reset model matrix values
+	//example for non constant rotation in game loop...
+	//backpack.setPosition(); --> without this the object will rotate non stop
+	//backpack.rotateAround(glm::normalize(glm::vec3(0.1f, 0.1f, 0.f)), glm::radians(50.f));
+	void setPosition(glm::vec3 position = glm::vec3(0.f, 0.f, 0.f)) {
 		modelMatrix = glm::mat4(1.f);
 		modelMatrix = glm::translate(modelMatrix, position);
 	}
+
 	void translate(glm::vec3 position) {
 		modelMatrix = glm::translate(modelMatrix, position);
 	}
@@ -41,7 +47,7 @@ public:
 		modelMatrix = glm::rotate(modelMatrix, howMutch, axis);
 	}
 	RenderableObject(std::string modelPath);
-	RenderableObject(float* vertices, unsigned int verticesCount, unsigned int diffuseTextureMap, unsigned int specularTextureMap);
+	RenderableObject(float* vertices, unsigned int verticesCount, const char* diffuseTextureMap, const char* specularTextureMap);
 	RenderableObject(float* vertices, unsigned int verticesCount);
 	~RenderableObject();
 	unsigned int getShaderType() { return shaderType; }
