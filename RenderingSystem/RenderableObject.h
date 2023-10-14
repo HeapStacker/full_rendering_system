@@ -23,10 +23,10 @@ class RenderableObject
 	Model* model = nullptr;
 	static unsigned int IdAdder;
 	static std::vector<RenderableObject*> renderableObjects;
-	MaterialData materialData;
 	glm::mat4 modelMatrix = glm::mat4(1.f);
 	unsigned int shaderType = 0;
 public:
+	MaterialData materialData;
 
 	//we use this function also to reset model matrix values
 	//example for non constant rotation in game loop...
@@ -43,11 +43,11 @@ public:
 	void scale(float scalar) {
 		modelMatrix = glm::scale(modelMatrix, glm::vec3(scalar));
 	}
-	void rotateAround(glm::vec3 axis, float howMutch) {
-		modelMatrix = glm::rotate(modelMatrix, howMutch, axis);
+	void rotateAround(glm::vec3 axis, float degrees) {
+		modelMatrix = glm::rotate(modelMatrix, glm::radians(degrees), glm::normalize(axis));
 	}
 	RenderableObject(std::string modelPath);
-	RenderableObject(float* vertices, unsigned int verticesCount, const char* diffuseTextureMap, const char* specularTextureMap);
+	RenderableObject(float* vertices, unsigned int verticesCount, const char* diffuseTexturePath, const char* specularTexturePath);
 	RenderableObject(float* vertices, unsigned int verticesCount);
 	~RenderableObject();
 	unsigned int getShaderType() { return shaderType; }

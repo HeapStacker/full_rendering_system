@@ -46,6 +46,9 @@ void processInput(GLFWwindow* window)
 		camera->ProcessKeyboard(UP, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
 		camera->ProcessKeyboard(DOWN, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_DELETE) == GLFW_PRESS) {
+		RenderableObject::Erase(2);
+	}
 }
 
 static int fps = 120;
@@ -102,9 +105,14 @@ int main()
 	window = initializer->window;
 	camera = initializer->camera;
 	Shader ourShader("model.vs", "model.fs");
-	//RenderableObject backpack("models/backpack/backpack.obj");
+	RenderableObject backpack("models/backpack/backpack.obj");
 	RenderableObject cube(vertices, sizeof(vertices), "textures/container2.png", "textures/container2_specular.png");
-	//backpack.translate(glm::vec3(1.5f, 0.2f, -1.5f));
+	RenderableObject cube1(vertices, sizeof(vertices), "textures/container2.png", "textures/container2_specular.png");
+	RenderableObject cube2(vertices, sizeof(vertices), "textures/container2.png", "textures/container2_specular.png");
+	RenderableObject cube3(vertices, sizeof(vertices), "textures/container2.png", "textures/container2_specular.png");
+	cube1.setPosition({ 5, 5, 5 });
+	cube2.setPosition({ -1, 5, 5 });
+	cube3.setPosition({ 5, -1, 10 });
 	system_clock::time_point tp1, tp2;
 	duration frameDuration = milliseconds(1000) / fps;
 	while (!glfwWindowShouldClose(window))
@@ -114,8 +122,10 @@ int main()
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 		processInput(window);
-		backpack.setPosition();
-		backpack.rotateAround(glm::normalize(glm::vec3(0.1f, 0.1f, 0.f)), glm::radians(50.f));
+		backpack.setPosition({2, 2, 2});
+		backpack.rotateAround({ 0.1f, 0.1f, 0.f }, (float)glfwGetTime() * 100);
+		cube.setPosition();
+		cube.rotateAround({ 0, 1, 0 }, 45);
 		RenderableObject::RenderObjects(window, camera);
 		tp2 = system_clock::now();
 		if (frameDuration > tp2 - tp1) {

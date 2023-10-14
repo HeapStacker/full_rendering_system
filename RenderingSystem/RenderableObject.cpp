@@ -142,24 +142,135 @@ RenderableObject::RenderableObject(std::string modelPath) {
 	RenderableObject::renderableObjects.push_back(this);
 }
 
-RenderableObject::RenderableObject(float* vertices, unsigned int verticesSize, const char* diffuseTextureMap, const char* specularTextureMap) {
-	id = ++RenderableObject::IdAdder;
-	shaderType = 0;
-	SetShaders();
-	materialData.diffuseMap = loadTexture(diffuseTextureMap);
-	materialData.specularMap = loadTexture(specularTextureMap);
-	materialData.verticesCount = verticesSize / (sizeof(float) * 8);
-	glGenVertexArrays(1, &materialData.VAO);
-	glGenBuffers(1, &materialData.VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, materialData.VBO);
+struct VerticesData {
+	float* vertices;
+	unsigned int verticesCount;
+	unsigned int VAO;
+	unsigned int VBO;
+};
+
+//Diffuse flyweight
+struct DiffuseData {
+	const char* diffusePath;
+	unsigned int diffuseMap;
+};
+
+//Specular flyweight
+struct SpecularData {
+	const char* specularPath;
+	unsigned int specularMap;
+};
+
+static std::vector<VerticesData> consumedVertices;
+static std::vector<DiffuseData> consumedDiffuseTextures;
+static std::vector<SpecularData> consumedSpecularTextures;
+
+static void setVaoVbo(float* vertices, unsigned int& verticesSize, unsigned int& vao, unsigned int& vbo) {
+	glGenVertexArrays(1, &vao);
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW); //or GL_DYNAMIC_DRAW for moving objects
-	glBindVertexArray(materialData.VAO);
+	glBindVertexArray(vao);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 	glEnableVertexAttribArray(2);
+}
+
+static void setMaterialData(RenderableObject* renderableObject, unsigned int& vao, unsigned int& vbo, unsigned int&& verticesCount) {
+	renderableObject->materialData.VAO = vao;
+	renderableObject->materialData.VBO = vbo;
+	renderableObject->materialData.verticesCount = verticesCount;
+}
+
+static bool assignOrCreateDiffuseMap(RenderableObject* renderableObject, DiffuseData* data, const char* diffuseTexturePath, bool lastCreatedMap = false) {
+	if (data && data->diffusePath == diffuseTexturePath) { //validate if it's the same diffuse texture path
+		renderableObject->materialData.diffuseMap = data->diffuseMap; //set materials diffuse map
+		std::cout << "Diffuse map found\n";
+		return true;
+	}
+	if (!data || data->diffusePath != diffuseTexturePath && lastCreatedMap) {
+		DiffuseData tempData = { diffuseTexturePath, loadTexture(diffuseTexturePath) };
+		consumedDiffuseTextures.push_back(tempData);
+		renderableObject->materialData.diffuseMap = tempData.diffuseMap;
+		std::cout << "Diffuse map created\n";
+	}
+	return false;
+}
+
+static bool assignOrCreateSpecularMap(RenderableObject* renderableObject, SpecularData* data, const char* specularTexturePath, bool lastCreatedMap = false) {
+	if (data && data->specularPath == specularTexturePath) { //validate if it's the same specular texture path
+		renderableObject->materialData.specularMap = data->specularMap; //set materials specular map
+		std::cout << "Specular map found\n";
+		return true;
+	}
+	if (!data || data->specularPath != specularTexturePath && lastCreatedMap) {
+		SpecularData tempData = { specularTexturePath, loadTexture(specularTexturePath) };
+		consumedSpecularTextures.push_back(tempData);
+		renderableObject->materialData.specularMap = tempData.specularMap;
+		std::cout << "Specular map created\n";
+	}
+	return false;
+}
+
+static void setVertices(RenderableObject* renderableObject, float* vertices, unsigned int& verticesSize) {
+	unsigned int tempVao, tempVbo;
+	setVaoVbo(vertices, verticesSize, tempVao, tempVbo);
+	VerticesData tempData = { vertices, verticesSize / sizeof(float), tempVao, tempVbo };
+	consumedVertices.push_back(tempData);
+	setMaterialData(renderableObject, tempVao, tempVbo, verticesSize / sizeof(float));
+}
+
+RenderableObject::RenderableObject(float* vertices, unsigned int verticesSize, const char* diffuseTexturePath, const char* specularTexturePath) {
+	id = ++RenderableObject::IdAdder;
+	shaderType = 0;
+	SetShaders();
+	static bool isFirstTime = true;
+	if (isFirstTime) {
+		assignOrCreateDiffuseMap(this, nullptr, diffuseTexturePath, true);
+		assignOrCreateSpecularMap(this, nullptr, specularTexturePath, true);
+		setVertices(this, vertices, verticesSize);
+		std::cout << "VAO & VBO created\n";
+		isFirstTime = false;
+	}
+	else {
+		//this part of code checks if diffuse and specular textures alreay exist (set if exist, create and set if it doesn't exist)
+		for (int i = 0; i < consumedDiffuseTextures.size(); i++) {
+			if (assignOrCreateDiffuseMap(this, &consumedDiffuseTextures[i], diffuseTexturePath, i + 1 == consumedDiffuseTextures.size())) break;
+		}
+		for (int i = 0; i < consumedSpecularTextures.size(); i++) {
+			if (assignOrCreateSpecularMap(this, &consumedSpecularTextures[i], specularTexturePath, i + 1 == consumedSpecularTextures.size())) break;
+		}
+
+		bool areVerticesAssigned = false;
+		for (int i = 0; i < consumedVertices.size(); i++) {
+			if (consumedVertices[i].verticesCount == verticesSize / sizeof(float)) {
+				for (int j = 0; j < verticesSize / sizeof(float); j++) {
+
+					//if vertices dont match we immediately break the loop
+					if (consumedVertices[i].vertices[j] != vertices[j]) break;
+					else {
+
+						//if vertices are the same assign the vertex data...
+						if (j == verticesSize / sizeof(float) - 1) {
+							setMaterialData(this, consumedVertices[i].VAO, consumedVertices[i].VBO, verticesSize / sizeof(float));
+							areVerticesAssigned = true;
+							std::cout << "VAO & VBO found\n";
+						}
+					}
+				}
+				if (areVerticesAssigned) break;
+			}
+		}
+
+		//create and assign vertex data if it's not created yet
+		if (!areVerticesAssigned) {
+			setVertices(this, vertices, verticesSize);
+			std::cout << "VAO & VBO created\n";
+		}
+	}
 	RenderableObject::renderableObjects.push_back(this);
 }
 
@@ -188,7 +299,6 @@ RenderableObject::~RenderableObject() {
 }
 
 //object isn't fully removed (only at the end of the program)
-//UNSTABLE - doesn't crash the content but stops the camera from moving
 void RenderableObject::Erase(unsigned int id) { 
 	RenderableObject* object = RenderableObject::FindById(id);
 	RenderableObject::renderableObjects.erase(std::remove(RenderableObject::renderableObjects.begin(), RenderableObject::renderableObjects.end(), object), RenderableObject::renderableObjects.end());
@@ -210,8 +320,6 @@ void setShaderDrawProperties(Shader* shader, Camera* camera, glm::mat4& model, g
 	shader->setMat4("model", model);
 }
 
-
-//refactor to gain more optimised results
 void RenderableObject::RenderObjects(GLFWwindow* window, Camera* camera) {
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f); //make that the clear color can be changed somewhere
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
