@@ -51,6 +51,20 @@ void processInput(GLFWwindow* window)
 	}
 }
 
+static glm::vec3 pointLightPositions[] = {
+			glm::vec3(0.7f,  0.2f,  2.0f),
+			glm::vec3(2.3f, -3.3f, -4.0f),
+			glm::vec3(-4.0f,  2.0f, -12.0f),
+			glm::vec3(0.0f,  0.0f, -3.0f)
+};
+
+static glm::vec3 pointLightColors[] = {
+	glm::vec3(1.f, 1.f, 1.f),
+	glm::vec3(0.1f, 0.1f, 0.1f),
+	glm::vec3(0.1f, 0.1f, 0.1f),
+	glm::vec3(0.3f, 0.1f, 0.1f)
+};
+
 static int fps = 120;
 
 static float vertices[] = {
@@ -98,18 +112,24 @@ static float vertices[] = {
 	-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
 };
 
+Attenuation attenuation = { 1.f, 0.09f, 0.032f };
+DirectionalLight dirLight = { {-0.2f, -1.0f, -0.3f}, {0.2f, 0.2f, 0.2f}, {0.05f, 0.05f, 0.05f}, {0.2f, 0.2f, 0.2f} };
+SpotLight spotLight = { {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, attenuation, getSpotLightCutOff(10.f), getSpotLightCutOff(15.f) };
+
 int main()
 {
 	ContentInitializer* initializer = ContentInitializer::GetInstance();
 	initializer->setUp("OpenGL Tut", SCR_WIDTH, SCR_HEIGHT);
 	window = initializer->window;
 	camera = initializer->camera;
-	Shader ourShader("model.vs", "model.fs");
+	RenderableObject::SetLightProperties(dirLight, spotLight);
 	RenderableObject backpack("models/backpack/backpack.obj");
 	RenderableObject cube(vertices, sizeof(vertices), "textures/container2.png", "textures/container2_specular.png");
 	RenderableObject cube1(vertices, sizeof(vertices), "textures/container2.png", "textures/container2_specular.png");
 	RenderableObject cube2(vertices, sizeof(vertices), "textures/container2.png", "textures/container2_specular.png");
 	RenderableObject cube3(vertices, sizeof(vertices), "textures/container2.png", "textures/container2_specular.png");
+	//cube3.turnToLamp(pointLightColors[0], 0.4f, { 1.f, 0.09f, 0.032f });
+	cube3.turnToLamp(pointLightColors[0], 0.4f, { 1.f, 1.f, 1.f });
 	cube1.setPosition({ 5, 5, 5 });
 	cube2.setPosition({ -1, 5, 5 });
 	cube3.setPosition({ 5, -1, 10 });
@@ -124,7 +144,7 @@ int main()
 		processInput(window);
 		backpack.setPosition({2, 2, 2});
 		backpack.rotateAround({ 0.1f, 0.1f, 0.f }, (float)glfwGetTime() * 100);
-		cube.setPosition();
+		cube.setPosition({0, 0, 0});
 		cube.rotateAround({ 0, 1, 0 }, 45);
 		RenderableObject::RenderObjects(window, camera);
 		tp2 = system_clock::now();

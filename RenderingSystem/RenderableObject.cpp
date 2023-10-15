@@ -6,87 +6,47 @@ extern unsigned int SCR_WIDTH;
 extern unsigned int SCR_HEIGHT;
 unsigned int RenderableObject::IdAdder = 0;
 std::vector<RenderableObject*> RenderableObject::renderableObjects;
-static Shader* lightedObjectShader = nullptr;
-static Shader* lampShader = nullptr;
-static bool areShadersSet = false;
+unsigned int RenderableObject::luminousObjectsCount = 0;
+static Shader* multiLightTextureShader = nullptr;
+static Shader* colorShader = nullptr;
+bool RenderableObject::areLightsSet = false;
 
 static void DeleteShaders() {
-	if (lightedObjectShader) delete lightedObjectShader;
-	if (lampShader) delete lampShader;
-	lightedObjectShader = nullptr;
-	lampShader = nullptr;
+	if (multiLightTextureShader) delete multiLightTextureShader;
+	if (colorShader) delete colorShader;
+	multiLightTextureShader = nullptr;
+	colorShader = nullptr;
 }
 
-static void SetShaders() {
-	if (!areShadersSet) {
-		lightedObjectShader = new Shader("lighting.vs", "multyLight.fs");
-		lampShader = new Shader("lightObj.vs", "lightObj.fs");
-		
-		lightedObjectShader->use();
-		lightedObjectShader->setInt("material.texture_diffuse", 0);
-		lightedObjectShader->setInt("material.texture_specular", 1); //create a better solution for more objects and different specular and diffuse maps
-		lightedObjectShader->setFloat("material.shininess", 32.0f);
+void crashAndReport(int crashId, std::string errorMessage) {
+	std::cout << errorMessage << std::endl;
+	glfwTerminate();
+	DeleteShaders();
+	exit(crashId);
+}
 
-		glm::vec3 pointLightPositions[] = {
-			glm::vec3(0.7f,  0.2f,  2.0f),
-			glm::vec3(2.3f, -3.3f, -4.0f),
-			glm::vec3(-4.0f,  2.0f, -12.0f),
-			glm::vec3(0.0f,  0.0f, -3.0f)
-		};
-		glm::vec3 pointLightColors[] = {
-			glm::vec3(0.1f, 0.1f, 0.1f),
-			glm::vec3(0.1f, 0.1f, 0.1f),
-			glm::vec3(0.1f, 0.1f, 0.1f),
-			glm::vec3(0.3f, 0.1f, 0.1f)
-		};
-		// Directional light
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "dirLight.direction"), -0.2f, -1.0f, -0.3f);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "dirLight.ambient"), 0.2f, 0.2f, 0.2f);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "dirLight.diffuse"), 0.05f, 0.05f, 0.05);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "dirLight.specular"), 0.2f, 0.2f, 0.2f);
-		// Point light 1                 					->
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[0].position"), pointLightPositions[0].x, pointLightPositions[0].y, pointLightPositions[0].z);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[0].ambient"), pointLightColors[0].x * 0.1, pointLightColors[0].y * 0.1, pointLightColors[0].z * 0.1);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[0].diffuse"), pointLightColors[0].x, pointLightColors[0].y, pointLightColors[0].z);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[0].specular"), pointLightColors[0].x, pointLightColors[0].y, pointLightColors[0].z);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[0].constant"), 1.0f);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[0].linear"), 0.09f);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[0].quadratic"), 0.032);
-		// Point light 2               						->
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[1].position"), pointLightPositions[1].x, pointLightPositions[1].y, pointLightPositions[1].z);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[1].ambient"), pointLightColors[1].x * 0.1, pointLightColors[1].y * 0.1, pointLightColors[1].z * 0.1);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[1].diffuse"), pointLightColors[1].x, pointLightColors[1].y, pointLightColors[1].z);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[1].specular"), pointLightColors[1].x, pointLightColors[1].y, pointLightColors[1].z);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[1].constant"), 1.0f);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[1].linear"), 0.09);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[1].quadratic"), 0.032);
-		// Point light 3               						->
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[2].position"), pointLightPositions[2].x, pointLightPositions[2].y, pointLightPositions[2].z);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[2].ambient"), pointLightColors[2].x * 0.1, pointLightColors[2].y * 0.1, pointLightColors[2].z * 0.1);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[2].diffuse"), pointLightColors[2].x, pointLightColors[2].y, pointLightColors[2].z);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[2].specular"), pointLightColors[2].x, pointLightColors[2].y, pointLightColors[2].z);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[2].constant"), 1.0f);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[2].linear"), 0.09);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[2].quadratic"), 0.032);
-		// Point light 4            						->
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[3].position"), pointLightPositions[3].x, pointLightPositions[3].y, pointLightPositions[3].z);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[3].ambient"), pointLightColors[3].x * 0.1, pointLightColors[3].y * 0.1, pointLightColors[3].z * 0.1);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[3].diffuse"), pointLightColors[3].x, pointLightColors[3].y, pointLightColors[3].z);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[3].specular"), pointLightColors[3].x, pointLightColors[3].y, pointLightColors[3].z);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[3].constant"), 1.0f);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[3].linear"), 0.09);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "pointLights[3].quadratic"), 0.032);
-		// spot light										->
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "spotLight.ambient"), 0.0f, 0.0f, 0.0f);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "spotLight.diffuse"), 1.0f, 1.0f, 1.0f);
-		glUniform3f(glGetUniformLocation(lightedObjectShader->ID, "spotLight.specular"), 1.0f, 1.0f, 1.0f);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "spotLight.constant"), 1.0f);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "spotLight.linear"), 0.09);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "spotLight.quadratic"), 0.032);
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "spotLight.cutOff"), glm::cos(glm::radians(10.0f)));
-		glUniform1f(glGetUniformLocation(lightedObjectShader->ID, "spotLight.outerCutOff"), glm::cos(glm::radians(15.0f)));
-
-		areShadersSet = true;
+void RenderableObject::SetLightProperties(const DirectionalLight& dirLight, const SpotLight& spotLight) {
+	if (!areLightsSet) {
+		multiLightTextureShader = new Shader("lighting.vs", "multyLight.fs");
+		colorShader = new Shader("lightObj.vs", "lightObj.fs");
+		multiLightTextureShader->use();
+		multiLightTextureShader->setInt("numOfPointLights", RenderableObject::luminousObjectsCount);
+		multiLightTextureShader->setInt("material.texture_diffuse", 0);
+		multiLightTextureShader->setInt("material.texture_specular", 1); //create a better solution for more objects and different specular and diffuse maps
+		multiLightTextureShader->setFloat("material.shininess", 32.f);
+		multiLightTextureShader->setVec3("dirLight.direction", dirLight.direction);
+		multiLightTextureShader->setVec3("dirLight.ambient", dirLight.ambient);
+		multiLightTextureShader->setVec3("dirLight.diffuse", dirLight.diffuse);
+		multiLightTextureShader->setVec3("dirLight.specular", dirLight.specular);
+		multiLightTextureShader->setVec3("spotLight.ambient", spotLight.ambient);
+		multiLightTextureShader->setVec3("spotLight.diffuse", spotLight.diffuse);
+		multiLightTextureShader->setVec3("spotLight.specular", spotLight.specular);
+		multiLightTextureShader->setFloat("spotLight.constant", spotLight.attenuation.constantMultiplier);
+		multiLightTextureShader->setFloat("spotLight.linear", spotLight.attenuation.linearMultiplier);
+		multiLightTextureShader->setFloat("spotLight.quadratic", spotLight.attenuation.quadraticMultiplier);
+		multiLightTextureShader->setFloat("spotLight.cutOff", spotLight.innerCutOff);
+		multiLightTextureShader->setFloat("spotLight.outerCutOff", spotLight.outerCutOff);
+		areLightsSet = true;
 	}
 }
 
@@ -94,7 +54,6 @@ unsigned int loadTexture(char const* path)
 {
 	unsigned int textureID;
 	glGenTextures(1, &textureID);
-
 	int width, height, nrComponents;
 	unsigned char* data = stbi_load(path, &width, &height, &nrComponents, 0);
 	if (data)
@@ -106,16 +65,13 @@ unsigned int loadTexture(char const* path)
 			format = GL_RGB;
 		else if (nrComponents == 4)
 			format = GL_RGBA;
-
 		glBindTexture(GL_TEXTURE_2D, textureID);
 		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
-
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
 		stbi_image_free(data);
 	}
 	else
@@ -134,12 +90,33 @@ RenderableObject* RenderableObject::FindById(unsigned int id) {
 	return nullptr;
 }
 
+void RenderableObject::setPosition(glm::vec3 position) {
+	this->position = position;
+	if (isLuminous) {
+		std::string lightId = "pointLights[" + std::to_string(luminousObjectId) + "]";
+		multiLightTextureShader->setVec3(lightId + ".position", position);
+	}
+	modelMatrix = glm::mat4(1.f);
+	modelMatrix = glm::translate(modelMatrix, position);
+}
+
+void RenderableObject::translate(glm::vec3 position) {
+	this->position += position;
+	if (isLuminous) {
+		std::string lightId = "pointLights[" + std::to_string(luminousObjectId) + "]";
+		multiLightTextureShader->setVec3(lightId + ".position", position);
+	}
+	modelMatrix = glm::translate(modelMatrix, position);
+}
+
 RenderableObject::RenderableObject(std::string modelPath) {
-	id = ++RenderableObject::IdAdder;
-	shaderType = 0;
-	SetShaders();
-	model = new Model(modelPath);
-	RenderableObject::renderableObjects.push_back(this);
+	if (areLightsSet) {
+		id = ++RenderableObject::IdAdder;
+		shaderType = 0;
+		model = new Model(modelPath);
+		RenderableObject::renderableObjects.push_back(this);
+	}
+	else crashAndReport(4, "Light properties not set");
 }
 
 struct VerticesData {
@@ -165,7 +142,7 @@ static std::vector<VerticesData> consumedVertices;
 static std::vector<DiffuseData> consumedDiffuseTextures;
 static std::vector<SpecularData> consumedSpecularTextures;
 
-static void setVaoVbo(float* vertices, unsigned int& verticesSize, unsigned int& vao, unsigned int& vbo) {
+static void SetVaoVbo(float* vertices, unsigned int& verticesSize, unsigned int& vao, unsigned int& vbo) {
 	glGenVertexArrays(1, &vao);
 	glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -179,115 +156,124 @@ static void setVaoVbo(float* vertices, unsigned int& verticesSize, unsigned int&
 	glEnableVertexAttribArray(2);
 }
 
-static void setMaterialData(RenderableObject* renderableObject, unsigned int& vao, unsigned int& vbo, unsigned int&& verticesCount) {
+static void SetMaterialData(RenderableObject* renderableObject, unsigned int& vao, unsigned int& vbo, unsigned int&& verticesCount) {
 	renderableObject->materialData.VAO = vao;
 	renderableObject->materialData.VBO = vbo;
 	renderableObject->materialData.verticesCount = verticesCount;
 }
 
-static bool assignOrCreateDiffuseMap(RenderableObject* renderableObject, DiffuseData* data, const char* diffuseTexturePath, bool lastCreatedMap = false) {
+static bool AssignOrCreateDiffuseMap(RenderableObject* renderableObject, DiffuseData* data, const char* diffuseTexturePath, bool lastCreatedMap = false) {
 	if (data && data->diffusePath == diffuseTexturePath) { //validate if it's the same diffuse texture path
 		renderableObject->materialData.diffuseMap = data->diffuseMap; //set materials diffuse map
-		std::cout << "Diffuse map found\n";
 		return true;
 	}
 	if (!data || data->diffusePath != diffuseTexturePath && lastCreatedMap) {
 		DiffuseData tempData = { diffuseTexturePath, loadTexture(diffuseTexturePath) };
 		consumedDiffuseTextures.push_back(tempData);
 		renderableObject->materialData.diffuseMap = tempData.diffuseMap;
-		std::cout << "Diffuse map created\n";
 	}
 	return false;
 }
 
-static bool assignOrCreateSpecularMap(RenderableObject* renderableObject, SpecularData* data, const char* specularTexturePath, bool lastCreatedMap = false) {
+static bool AssignOrCreateSpecularMap(RenderableObject* renderableObject, SpecularData* data, const char* specularTexturePath, bool lastCreatedMap = false) {
 	if (data && data->specularPath == specularTexturePath) { //validate if it's the same specular texture path
 		renderableObject->materialData.specularMap = data->specularMap; //set materials specular map
-		std::cout << "Specular map found\n";
 		return true;
 	}
 	if (!data || data->specularPath != specularTexturePath && lastCreatedMap) {
 		SpecularData tempData = { specularTexturePath, loadTexture(specularTexturePath) };
 		consumedSpecularTextures.push_back(tempData);
 		renderableObject->materialData.specularMap = tempData.specularMap;
-		std::cout << "Specular map created\n";
 	}
 	return false;
 }
 
-static void setVertices(RenderableObject* renderableObject, float* vertices, unsigned int& verticesSize) {
+static void SetVertices(RenderableObject* renderableObject, float* vertices, unsigned int& verticesSize) {
 	unsigned int tempVao, tempVbo;
-	setVaoVbo(vertices, verticesSize, tempVao, tempVbo);
+	SetVaoVbo(vertices, verticesSize, tempVao, tempVbo);
 	VerticesData tempData = { vertices, verticesSize / sizeof(float), tempVao, tempVbo };
 	consumedVertices.push_back(tempData);
-	setMaterialData(renderableObject, tempVao, tempVbo, verticesSize / sizeof(float));
+	SetMaterialData(renderableObject, tempVao, tempVbo, verticesSize / sizeof(float));
+}
+
+static void AssignVertices(RenderableObject* renderableObject, float* vertices, unsigned int& verticesSize) {
+	bool areVerticesAssigned = false;
+	for (int i = 0; i < consumedVertices.size(); i++) {
+		if (consumedVertices[i].verticesCount == verticesSize / sizeof(float)) {
+			for (int j = 0; j < verticesSize / sizeof(float); j++) {
+				if (consumedVertices[i].vertices[j] != vertices[j]) break;
+				else {
+					if (j == verticesSize / sizeof(float) - 1) {
+						SetMaterialData(renderableObject, consumedVertices[i].VAO, consumedVertices[i].VBO, verticesSize / sizeof(float));
+						areVerticesAssigned = true;
+					}
+				}
+			}
+			if (areVerticesAssigned) break;
+		}
+	}
+	if (!areVerticesAssigned) {
+		SetVertices(renderableObject, vertices, verticesSize);
+	}
 }
 
 RenderableObject::RenderableObject(float* vertices, unsigned int verticesSize, const char* diffuseTexturePath, const char* specularTexturePath) {
-	id = ++RenderableObject::IdAdder;
-	shaderType = 0;
-	SetShaders();
-	static bool isFirstTime = true;
-	if (isFirstTime) {
-		assignOrCreateDiffuseMap(this, nullptr, diffuseTexturePath, true);
-		assignOrCreateSpecularMap(this, nullptr, specularTexturePath, true);
-		setVertices(this, vertices, verticesSize);
-		std::cout << "VAO & VBO created\n";
-		isFirstTime = false;
-	}
-	else {
-		//this part of code checks if diffuse and specular textures alreay exist (set if exist, create and set if it doesn't exist)
-		for (int i = 0; i < consumedDiffuseTextures.size(); i++) {
-			if (assignOrCreateDiffuseMap(this, &consumedDiffuseTextures[i], diffuseTexturePath, i + 1 == consumedDiffuseTextures.size())) break;
+	if (areLightsSet) {
+		id = ++RenderableObject::IdAdder;
+		shaderType = 0;
+		static bool isFirstTime = true;
+		if (isFirstTime) {
+			AssignOrCreateDiffuseMap(this, nullptr, diffuseTexturePath, true);
+			AssignOrCreateSpecularMap(this, nullptr, specularTexturePath, true);
+			SetVertices(this, vertices, verticesSize);
+			isFirstTime = false;
 		}
-		for (int i = 0; i < consumedSpecularTextures.size(); i++) {
-			if (assignOrCreateSpecularMap(this, &consumedSpecularTextures[i], specularTexturePath, i + 1 == consumedSpecularTextures.size())) break;
-		}
-
-		bool areVerticesAssigned = false;
-		for (int i = 0; i < consumedVertices.size(); i++) {
-			if (consumedVertices[i].verticesCount == verticesSize / sizeof(float)) {
-				for (int j = 0; j < verticesSize / sizeof(float); j++) {
-
-					//if vertices dont match we immediately break the loop
-					if (consumedVertices[i].vertices[j] != vertices[j]) break;
-					else {
-
-						//if vertices are the same assign the vertex data...
-						if (j == verticesSize / sizeof(float) - 1) {
-							setMaterialData(this, consumedVertices[i].VAO, consumedVertices[i].VBO, verticesSize / sizeof(float));
-							areVerticesAssigned = true;
-							std::cout << "VAO & VBO found\n";
-						}
-					}
-				}
-				if (areVerticesAssigned) break;
+		else {
+			//this part of code checks if diffuse and specular textures alreay exist (set if exist, create and set if it doesn't exist)
+			for (int i = 0; i < consumedDiffuseTextures.size(); i++) {
+				if (AssignOrCreateDiffuseMap(this, &consumedDiffuseTextures[i], diffuseTexturePath, i + 1 == consumedDiffuseTextures.size())) break;
 			}
+			for (int i = 0; i < consumedSpecularTextures.size(); i++) {
+				if (AssignOrCreateSpecularMap(this, &consumedSpecularTextures[i], specularTexturePath, i + 1 == consumedSpecularTextures.size())) break;
+			}
+			AssignVertices(this, vertices, verticesSize);
 		}
+		RenderableObject::renderableObjects.push_back(this);
+	} 
+	else crashAndReport(4, "Light properties not set");
+}
 
-		//create and assign vertex data if it's not created yet
-		if (!areVerticesAssigned) {
-			setVertices(this, vertices, verticesSize);
-			std::cout << "VAO & VBO created\n";
-		}
-	}
-	RenderableObject::renderableObjects.push_back(this);
+static void SetVaoVboMinimised(float* vertices, unsigned int& verticesSize, unsigned int& vao, unsigned int& vbo) {
+	glGenVertexArrays(1, &vao);
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW); //or GL_DYNAMIC_DRAW for moving objects
+	glBindVertexArray(vao);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+}
+
+static void SetVerticesMinimised(RenderableObject* renderableObject, float* vertices, unsigned int& verticesSize) {
+	unsigned int tempVao, tempVbo;
+	SetVaoVboMinimised(vertices, verticesSize, tempVao, tempVbo);
+	VerticesData tempData = { vertices, verticesSize / sizeof(float), tempVao, tempVbo };
+	consumedVertices.push_back(tempData);
+	SetMaterialData(renderableObject, tempVao, tempVbo, verticesSize / sizeof(float));
 }
 
 RenderableObject::RenderableObject(float* vertices, unsigned int verticesSize) {
-	id = ++RenderableObject::IdAdder;
-	shaderType = 1;
-	SetShaders();
-	materialData.verticesCount = verticesSize / (sizeof(float) * 8);
-	glGenVertexArrays(1, &materialData.VAO); //it's bad to create so many VAOs and VBOs
-	glGenBuffers(1, &materialData.VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, materialData.VBO);
-	glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW); //or GL_DYNAMIC_DRAW for moving objects
-	glBindVertexArray(materialData.VAO);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-	this->setPosition();
-	RenderableObject::renderableObjects.push_back(this);
+	if (areLightsSet) {
+		id = ++RenderableObject::IdAdder;
+		shaderType = 1;
+		static bool isFirstTime = true;
+		if (isFirstTime) {
+			SetVerticesMinimised(this, vertices, verticesSize);
+			isFirstTime = false;
+		}
+		else AssignVertices(this, vertices, verticesSize);
+		RenderableObject::renderableObjects.push_back(this);
+	}
+	else crashAndReport(4, "Light properties not set");
 }
 
 RenderableObject::~RenderableObject() {
@@ -296,6 +282,22 @@ RenderableObject::~RenderableObject() {
 	glDeleteBuffers(1, &materialData.VBO);
 	if (renderableObjects.size() == 0) { DeleteShaders(); } //this would lead to a major bug if we wanted to run empty content without any objects
 	Erase(id);
+}
+
+void RenderableObject::turnToLamp(const glm::vec3& color, float lightMultiplier, const Attenuation& attenuation) {
+	isLuminous = true;
+	luminousObjectId = luminousObjectsCount;
+	luminousObjectsCount++;
+	std::string lightId = "pointLights[" + std::to_string(luminousObjectId) + "]";
+	multiLightTextureShader->use();
+	multiLightTextureShader->setInt("numOfPointLights", luminousObjectsCount);
+	multiLightTextureShader->setVec3(lightId + ".position", position);
+	multiLightTextureShader->setVec3(lightId + ".ambient", color * lightMultiplier);
+	multiLightTextureShader->setVec3(lightId + ".diffuse", color);
+	multiLightTextureShader->setVec3(lightId + ".specular", color);
+	multiLightTextureShader->setFloat(lightId + ".constant", attenuation.constantMultiplier);
+	multiLightTextureShader->setInt(lightId + ".linear", attenuation.linearMultiplier);
+	multiLightTextureShader->setInt(lightId + ".quadratic", attenuation.quadraticMultiplier);
 }
 
 //object isn't fully removed (only at the end of the program)
@@ -325,12 +327,11 @@ void RenderableObject::RenderObjects(GLFWwindow* window, Camera* camera) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glm::mat4 projection = glm::perspective(glm::radians(camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f); //change the way of passing SCR_WIDTH & SCR_HEIGHT
 	glm::mat4 view = camera->GetViewMatrix();
-	static Shader testLampShader("lightObj.vs", "lightObj.fs");
 	for (int i = 0; i < RenderableObject::renderableObjects.size(); i++) {
 		if (renderableObjects[i]->shaderType == 0) {
-			setShaderDrawProperties(lightedObjectShader, camera, renderableObjects[i]->modelMatrix, view, projection);
+			setShaderDrawProperties(multiLightTextureShader, camera, renderableObjects[i]->modelMatrix, view, projection);
 			if (renderableObjects[i]->model) {
-				renderableObjects[i]->model->Draw(*lightedObjectShader);
+				renderableObjects[i]->model->Draw(*multiLightTextureShader);
 			}
 			else {
 				glActiveTexture(GL_TEXTURE0);
@@ -342,16 +343,12 @@ void RenderableObject::RenderObjects(GLFWwindow* window, Camera* camera) {
 			}
 		}
 		else if (renderableObjects[i]->shaderType == 1) {
-			setShaderDrawProperties(&testLampShader, camera, renderableObjects[i]->modelMatrix, view, projection);
-			testLampShader.setMat4("model", renderableObjects[i]->modelMatrix);
+			setShaderDrawProperties(colorShader, camera, renderableObjects[i]->modelMatrix, view, projection);
 			glBindVertexArray(renderableObjects[i]->materialData.VAO);
 			glDrawArrays(GL_TRIANGLES, 0, renderableObjects[i]->materialData.verticesCount);
 		}
 		else {
-			std::cout << "Shader type not implemented yet\n";
-			glfwTerminate();
-			DeleteShaders();
-			exit(3);
+			crashAndReport(3, "Shader type not implemented yet");
 		}
 	}
 	glfwSwapBuffers(window);
